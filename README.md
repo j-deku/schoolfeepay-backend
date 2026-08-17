@@ -1,1 +1,1 @@
-# School Fee Payment Platform implemnentation
+# School Fee Payment Platform implementation
