@@ -60,7 +60,7 @@ const registerUser = async (req: Request, res: Response): Promise<void> => {
       });
       return;
     }
-
+    
     // Hash password
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
@@ -192,11 +192,10 @@ const resendOTP = async (req:Request, res:Response): Promise<void> => {
 };
 
 const loginUser = async (req: Request, res: Response): Promise<void> => {
-  const { password, studentId } = req.body;
+  const { password, studentId, email } = req.body;
 
   try {
-    const user = await User.findOne({ studentId });
-    const selectedInstitution = await User.findOne({institution});
+    const user = await User.findOne({ email });
 
     if (!user) {
       res.status(404).json({
@@ -218,10 +217,6 @@ const loginUser = async (req: Request, res: Response): Promise<void> => {
     if(studentId < 10 || !validator.isNumeric(studentId)){
         res.json({success: false, message: "Invalid student ID. \n Please a valid student ID"})
         return;
-    }
-
-    if(!selectedInstitution = ["gctu", "upsa", "knust", "winneba"]){
-        res.json({success: true, message:"Match selected instutition."})
     }
 
     const passwordMatch = await bcrypt.compare(password, user.password);
