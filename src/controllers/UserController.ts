@@ -44,7 +44,34 @@ const registerUser = async (req: Request, res: Response): Promise<void> => {
         res.json({success: false, message: "Invalid student ID. \n Please a valid student ID"})
         return;
     }
+    
+    if (institution != "gctu" && !validator.isLength(studentId,10)) {
+      res.json({success: true, message:"Details matches"})
 
+    }
+
+    if (institution != "winneba" && !validator.isLength(studentId, 10)) {
+          res.json({success: true, message:"Details matches"})
+       
+    }
+
+
+    if (institution != "legon" && !validator.isLength(studentId, 8)) {
+        res.json({success: true, message:"Details matches"})
+       
+    }
+
+
+      if (institution != "knust" && !validator.isLength(studentId, 8)) {
+       res.json({success: true, message:"Details matches"})
+    }
+    
+      if (institution != "upsa" && !validator.isLength(studentId,8)) {
+       res.json({success: true, message:"Details matches"})
+    }
+    
+    
+   
     // Validate email
     if (!validator.isEmail(email)) {
       res.json({ success: false, message: "Invalid email format" });
@@ -192,11 +219,11 @@ const resendOTP = async (req:Request, res:Response): Promise<void> => {
 };
 
 const loginUser = async (req: Request, res: Response): Promise<void> => {
-  const { password, studentId } = req.body;
+  const { password, studentId , email} = req.body;
 
   try {
-    const user = await User.findOne({ studentId });
-    const selectedInstitution = await User.findOne({institution});
+    const user = await User.findOne({ email });
+  
 
     if (!user) {
       res.status(404).json({
@@ -220,9 +247,6 @@ const loginUser = async (req: Request, res: Response): Promise<void> => {
         return;
     }
 
-    if(!selectedInstitution = ["gctu", "upsa", "knust", "winneba"]){
-        res.json({success: true, message:"Match selected instutition."})
-    }
 
     const passwordMatch = await bcrypt.compare(password, user.password);
 

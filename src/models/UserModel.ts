@@ -22,7 +22,7 @@ const userSchema = new Schema<IUser>(
     name: { type: String, required: true },
     email: { type: String, required: true, unique: true, lowercase: true },
     studentId: { type: Number, required: true, unique: true},
-    institution: { type: String, enum:["gctu", "upsa", "knust", "winneba"], default:"gctu" },
+    institution: { type: String, enum:["gctu", "upsa", "knust", "winneba", "Legon"], default:"gctu" },
     role: { type: String, enum:["admin", "user"], default: "user" },
     password: { type: String },
     cartData: { type: Object},
