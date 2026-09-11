@@ -7,6 +7,9 @@ import PermissionRouter from "../routes/PermissionRoute";
 import BotRouter from "../routes/BotRoute";
 
 const apiRouter = express.Router();
+
+apiRouter.use("/v1/auth", StudentRouter);
+apiRouter.use("/v1/auth", AdminRouter);
  
 apiRouter.use("/student", StudentRouter);
 apiRouter.use("/admin", AdminRouter);

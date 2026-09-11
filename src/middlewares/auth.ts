@@ -1,35 +1,81 @@
-import { Request, Response, NextFunction } from "express";
-import jwt from "jsonwebtoken";
-import User from "../models/UserModel";
+import {
+  Request,
+  Response,
+  NextFunction,
+} from "express";
 
-const authMiddleware = async (req: Request, res: Response, next: NextFunction)=> {
+import jwt from "jsonwebtoken";
+import { User } from "../models/UserModel";
+
+const authMiddleware = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
   try {
-    const token = req.cookies.usATK;
+    const token = req.cookies?.usATK;
 
     if (!token) {
-      res.status(200).json({ success: false, message: "Unauthorized Access" });
+      res.status(401).json({
+        success: false,
+        message: "Authentication required.",
+      });
+
       return;
     }
 
     const decoded = jwt.verify(
       token,
       process.env.JWT_SECRET as string
-    ) as { id: string, role: string};
+    ) as {
+      id: string;
+      role: string;
+    };
 
-    const user = await User.findById(decoded.id);
+    const user = await User.findById(
+      decoded.id
+    ).select("_id role isActive");
+
     if (!user) {
-      res.status(200).json({
-          success:false
+      res.status(401).json({
+        success: false,
+        message: "User account not found.",
       });
-      return ;
-  }
 
-    req.body.userId = user._id;
-    req.body.role = user.role;
+      return;
+    }
+
+    if (!user.isActive) {
+      res.status(403).json({
+        success: false,
+        message: "This account has been deactivated.",
+      });
+
+      return;
+    }
+
+    req.user = {
+      id: user.id.toString(),
+      role: user.role,
+    };
 
     next();
+
   } catch (error) {
-    res.status(401).json({ success: false, message: "Invalid token" });
+    if (error instanceof jwt.TokenExpiredError) {
+      res.status(401).json({
+        success: false,
+        message: "Your session has expired.",
+        code: "ACCESS_TOKEN_EXPIRED",
+      });
+
+      return;
+    }
+
+    res.status(401).json({
+      success: false,
+      message: "Invalid authentication token.",
+    });
   }
 };
 

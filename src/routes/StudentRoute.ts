@@ -8,9 +8,11 @@ import {
   resendOTP,
   verifyOTP,
   googleAuthCallback,
-  userProfile,
-  refreshToken,
   logoutUser,
+  updateUserProfile,
+  updatePaymentStatus,
+  refreshAccessToken,
+  userProfile,
 } from "../controllers/UserController";
 import authMiddleware from "../middlewares/auth";
 
@@ -47,11 +49,7 @@ StudentRouter.post("/register", validateRegister, registerUser);
 StudentRouter.post("/login", validateLogin, loginUser);
 StudentRouter.post("/verify-otp", otpLimiter, validateOTP, verifyOTP);
 StudentRouter.post("/resend-otp", otpLimiter, resendOTP);
-StudentRouter.post("/refresh-token", refreshToken);
-
-StudentRouter.use(authMiddleware);
-StudentRouter.get("/me", userProfile);
-StudentRouter.post("/logout", logoutUser);
+StudentRouter.post("/refresh-token", refreshAccessToken);
 
 // Google OAuth routes
 StudentRouter.get("/google", passport.authenticate("google", { scope: ["profile", "email"] }));
@@ -61,4 +59,12 @@ StudentRouter.get("/google/callback",passport.authenticate("google", {
   }),
   googleAuthCallback
 );
+
+StudentRouter.use(authMiddleware);
+StudentRouter.get("/me", userProfile);
+StudentRouter.put('/profile', updateUserProfile);
+StudentRouter.patch('/payment-status', updatePaymentStatus);
+StudentRouter.post("/logout", logoutUser);
+
+
 export default StudentRouter;
