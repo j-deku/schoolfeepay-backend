@@ -95,9 +95,53 @@ const registerUser = async (
 
     if (existingUser) {
 
+<<<<<<< HEAD
       await session.abortTransaction();
 
       res.status(409).json({
+=======
+    if(studentId < 8 || !validator.isNumeric(studentId)){
+        res.json({success: false, message: "Invalid student ID. \n Please a valid student ID"})
+        return;
+    }
+    
+    if (institution != "gctu" && !validator.isLength(studentId,10)) {
+      res.json({success: true, message:"Details matches"})
+
+    }
+
+    if (institution != "winneba" && !validator.isLength(studentId, 10)) {
+          res.json({success: true, message:"Details matches"})
+       
+    }
+
+
+    if (institution != "legon" && !validator.isLength(studentId, 8)) {
+        res.json({success: true, message:"Details matches"})
+       
+    }
+
+
+      if (institution != "knust" && !validator.isLength(studentId, 8)) {
+       res.json({success: true, message:"Details matches"})
+    }
+    
+      if (institution != "upsa" && !validator.isLength(studentId,8)) {
+       res.json({success: true, message:"Details matches"})
+    }
+    
+    
+   
+    // Validate email
+    if (!validator.isEmail(email)) {
+      res.json({ success: false, message: "Invalid email format" });
+      return;
+    }
+
+    // Validate password strength
+    if (!validator.isStrongPassword(password)) {
+      res.json({
+>>>>>>> ddae35fb587e88ff57a29a4d574dee84bccd7229
         success: false,
         message:
           "An account with this email already exists.",
@@ -221,6 +265,7 @@ const registerUser = async (
   }
 };
 
+<<<<<<< HEAD
 const verifyOTP = async (
   req: Request,
   res: Response
@@ -255,6 +300,14 @@ const verifyOTP = async (
     // ==============================
 
     const user = await User.findById(userId);
+=======
+const loginUser = async (req: Request, res: Response): Promise<void> => {
+  const { password, studentId , email} = req.body;
+
+  try {
+    const user = await User.findOne({ email });
+  
+>>>>>>> ddae35fb587e88ff57a29a4d574dee84bccd7229
 
     if (!user) {
       res.status(404).json({
@@ -282,8 +335,37 @@ const verifyOTP = async (
     // FIND OTP
     // ==============================
 
+<<<<<<< HEAD
     const otpRecord = await OTPModel.findOne({
       userId: user._id,
+=======
+
+    const passwordMatch = await bcrypt.compare(password, user.password);
+
+    if (!passwordMatch) {
+      res.status(401).json({
+        success: false,
+        message: "Invalid password for this account.",
+      });
+      return;
+    }
+
+    if (!user.verified) {
+      res.status(403).json({
+        success: false,
+        message: "Please verify your email to continue.",
+        redirect: "/verify-otp",
+      });
+      return;
+    }
+
+    const accessToken = createAccessToken(user._id.toString(), user.role);
+    const refreshToken = createRefreshToken(user._id.toString());
+
+    setAppCookie(res, "usATK", accessToken, {
+      path: "/",
+      maxAge: 24 * 60 * 60 * 1000,
+>>>>>>> ddae35fb587e88ff57a29a4d574dee84bccd7229
     });
 
     if (!otpRecord) {

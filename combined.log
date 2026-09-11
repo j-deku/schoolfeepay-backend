@@ -9950,3 +9950,9 @@
 {"level":"info","message":"Request: GET /"}
 {"level":"info","message":"Request: GET /"}
 {"level":"info","message":"Request: GET /"}
+{"level":"info","message":"Request: GET /"}
+{"level":"info","message":"Request: GET /favicon.ico"}
+{"level":"info","message":"Request: GET /"}
+{"level":"info","message":"Request: GET /favicon.ico"}
+{"level":"info","message":"Request: GET /api/user/login"}
+{"level":"info","message":"Request: GET /api/user/register"}

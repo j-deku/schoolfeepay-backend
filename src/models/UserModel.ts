@@ -28,6 +28,7 @@ export interface IUser extends Document {
 
 const userSchema = new Schema<IUser>(
   {
+<<<<<<< HEAD
     firstName: {
       type: String,
       required: true,
@@ -87,6 +88,21 @@ const userSchema = new Schema<IUser>(
     lastLogin: Date,
 
     lastLoginIp: String,
+=======
+    _id: { type: Schema.Types.ObjectId, auto: true },
+    name: { type: String, required: true },
+    email: { type: String, required: true, unique: true, lowercase: true },
+    studentId: { type: Number, required: true, unique: true},
+    institution: { type: String, enum:["gctu", "upsa", "knust", "winneba", "Legon"], default:"gctu" },
+    role: { type: String, enum:["admin", "user"], default: "user" },
+    password: { type: String },
+    cartData: { type: Object},
+    avatar: { type: String },
+    courseData: { type: Object, default: {} },
+ //   googleId: { type: String, unique: true, sparse: true, },
+    verified: { type: Boolean, default: false },
+    message: {type: String}
+>>>>>>> ddae35fb587e88ff57a29a4d574dee84bccd7229
   },
   {
     timestamps: true,
