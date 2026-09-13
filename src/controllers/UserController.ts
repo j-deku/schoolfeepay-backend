@@ -1,512 +1,402 @@
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import validator from "validator";
+import mongoose from "mongoose";
+import { Request, Response } from "express";
+
 import OTPModel from "../models/OTPModel";
+import ActivityLog from "../models/ActivityLog";
+import { User } from "../models/UserModel";
+import { StudentProfile } from "../models/StudentProfileModel";
+import { Institution } from "../models/InstitutionModel";
+import { Programme } from "../models/ProgrammeModel";
+import { AcademicYear } from "../models/AcademicYearModel";
+
 import { generateOTP } from "../utils/generateOTP";
 import { sendEmail } from "../utils/sendEmail";
+import { setAppCookie } from "../utils/CookieHelper";
 import {
   EmailOTP,
   EmailWelcome,
   ResendEmail,
-  VerifiedEmail,
 } from "../utils/EmailTemplates";
-import { Request, Response } from "express";
-import { setAppCookie } from "../utils/CookieHelper";
-import { StudentProfile } from "../models/StudentProfileModel";
-import mongoose from "mongoose";
-import { User } from "../models/UserModel";
 
-// Create token
+// ==============================
+// TOKENS
+// ==============================
+
 const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET;
+
 if (!JWT_SECRET) throw new Error("JWT_SECRET is not defined");
 if (!JWT_REFRESH_SECRET) throw new Error("JWT_REFRESH_SECRET is not defined");
 
-export const createAccessToken = (
-  id: string,
-  role: string
-) => {
-  return jwt.sign(
-    {
-      id,
-      role,
-    },
-    JWT_SECRET,
-    {
-      expiresIn: "15m",
-    }
-  );
+export const createAccessToken = (id: string, role: string) => {
+  return jwt.sign({ id, role }, JWT_SECRET, { expiresIn: "15m" });
 };
 
-export const createRefreshToken = (
-  id: string
-) => {
-  return jwt.sign(
-    {
-      id,
-    },
-    JWT_REFRESH_SECRET,
-    {
-      expiresIn: "7d",
-    }
-  );
+export const createRefreshToken = (id: string) => {
+  return jwt.sign({ id }, JWT_REFRESH_SECRET, { expiresIn: "7d" });
 };
 
+const ACCESS_TOKEN_MAX_AGE = 15 * 60 * 1000;
+const REFRESH_TOKEN_MAX_AGE = 7 * 24 * 60 * 60 * 1000;
+const OTP_TTL_MS = 10 * 60 * 1000;
 
-const registerUser = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
+// ==============================
+// REGISTER
+// ==============================
 
-  const session =
-    await mongoose.startSession();
+const registerUser = async (req: Request, res: Response): Promise<void> => {
+  const session = await mongoose.startSession();
 
   try {
-
-    session.startTransaction();
-
     const {
       firstName,
       lastName,
+      dateOfBirth,
+      studentId,
+      institution,
+      programme,
+      level,
+      academicYear,
       email,
       phone,
       password,
-      studentId,
-      institutionId,
-      programmeId,
-      facultyId,
-      level,
     } = req.body;
-
-    // Validation happens here...
-
-    const normalizedEmail =
-      email.toLowerCase().trim();
-
-    const normalizedStudentId =
-      studentId.trim().toUpperCase();
-
-    // Check duplicates
-
-    const existingUser =
-      await User.findOne({
-        email: normalizedEmail,
-      }).session(session);
-
-    if (existingUser) {
-
-<<<<<<< HEAD
-      await session.abortTransaction();
-
-      res.status(409).json({
-=======
-    if(studentId < 8 || !validator.isNumeric(studentId)){
-        res.json({success: false, message: "Invalid student ID. \n Please a valid student ID"})
-        return;
-    }
-    
-    if (institution != "gctu" && !validator.isLength(studentId,10)) {
-      res.json({success: true, message:"Details matches"})
-
-    }
-
-    if (institution != "winneba" && !validator.isLength(studentId, 10)) {
-          res.json({success: true, message:"Details matches"})
-       
-    }
-
-
-    if (institution != "legon" && !validator.isLength(studentId, 8)) {
-        res.json({success: true, message:"Details matches"})
-       
-    }
-
-
-      if (institution != "knust" && !validator.isLength(studentId, 8)) {
-       res.json({success: true, message:"Details matches"})
-    }
-    
-      if (institution != "upsa" && !validator.isLength(studentId,8)) {
-       res.json({success: true, message:"Details matches"})
-    }
-    
-    
-   
-    // Validate email
-    if (!validator.isEmail(email)) {
-      res.json({ success: false, message: "Invalid email format" });
-      return;
-    }
-
-    // Validate password strength
-    if (!validator.isStrongPassword(password)) {
-      res.json({
->>>>>>> ddae35fb587e88ff57a29a4d574dee84bccd7229
-        success: false,
-        message:
-          "An account with this email already exists.",
-      });
-
-      return;
-    }
-
-    // Create user
-
-    const hashedPassword =
-      await bcrypt.hash(password, 12);
-
-    const users =
-      await User.create(
-        [
-          {
-            firstName: firstName.trim(),
-            lastName: lastName.trim(),
-            email: normalizedEmail,
-            phone: phone.trim(),
-            password: hashedPassword,
-            role: "student",
-            emailVerified: false,
-            isActive: true,
-          },
-        ],
-        { session }
-      );
-
-    const user = users[0];
-
-    if (!user) {
-      throw new Error(
-        "Failed to create user account."
-      );
-    }
-
-    // Create Student Profile
-
-    await StudentProfile.create(
-      [
-        {
-          user: user._id,
-          institution: institutionId,
-          studentId: normalizedStudentId,
-          faculty: facultyId || undefined,
-          programme: programmeId || undefined,
-          currentLevel: level || undefined,
-          status: "active",
-        },
-      ],
-      { session }
-    );
-
-    // Commit
-
-    await session.commitTransaction();
-
-    // OTP AFTER DATABASE TRANSACTION
-
-    const otp = generateOTP();
-
-    const expiresAt = new Date(
-      Date.now() +
-        10 * 60 * 1000
-    );
-
-    await OTPModel.deleteMany({
-      userId: user._id,
-    });
-
-    await OTPModel.create({
-      userId: user._id,
-      otp,
-      expiresAt,
-    });
-
-    // Send Email
-
-    await sendEmail(
-      user.email,
-      "Verify Your UniPay Ghana Account",
-      EmailOTP(
-        `${user.firstName} ${user.lastName}`,
-        otp
-      )
-    );
-
-    res.status(201).json({
-      success: true,
-
-      message:
-        "Registration successful. Please check your email for the verification code.",
-
-      userId: user._id,
-
-      redirect: "/verify-otp",
-    });
-
-  } catch (error) {
-
-    await session.abortTransaction();
-
-    console.error(
-      "Registration error:",
-      error
-    );
-
-    res.status(500).json({
-      success: false,
-
-      message:
-        "Unable to complete registration. Please try again.",
-    });
-
-  } finally {
-
-    session.endSession();
-
-  }
-};
-
-<<<<<<< HEAD
-const verifyOTP = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
-  try {
-    const { userId, otp } = req.body;
 
     // ==============================
     // VALIDATE REQUEST
     // ==============================
+
+    if (
+      !firstName ||
+      !lastName ||
+      !dateOfBirth ||
+      !studentId ||
+      !institution ||
+      !programme ||
+      !level ||
+      !email ||
+      !phone ||
+      !password
+    ) {
+      res.status(400).json({
+        success: false,
+        message: "All required fields must be provided.",
+      });
+      return;
+    }
+
+    if (!validator.isEmail(email)) {
+      res.status(400).json({
+        success: false,
+        message: "Please provide a valid email address.",
+      });
+      return;
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedPhone = phone.trim();
+    const normalizedStudentId = studentId.trim().toUpperCase();
+
+    // ==============================
+    // CHECK FOR EXISTING ACCOUNT
+    // ==============================
+
+    const existingUser = await User.findOne({
+      $or: [{ email: normalizedEmail }, { phone: normalizedPhone }],
+    });
+
+    if (existingUser) {
+      res.status(409).json({
+        success: false,
+        message:
+          existingUser.email === normalizedEmail
+            ? "An account with this email already exists."
+            : "An account with this phone number already exists.",
+      });
+      return;
+    }
+
+    // ==============================
+    // RESOLVE INSTITUTION
+    // ==============================
+
+    const institutionDoc = await Institution.findOne({
+      institutionCode: institution.toUpperCase(),
+      isActive: true,
+    });
+
+    if (!institutionDoc) {
+      res.status(400).json({
+        success: false,
+        message: "Selected institution could not be found.",
+      });
+      return;
+    }
+
+    // ==============================
+    // CHECK DUPLICATE STUDENT ID (SCOPED TO INSTITUTION)
+    // ==============================
+
+    const existingProfile = await StudentProfile.findOne({
+      institution: institutionDoc._id,
+      studentId: normalizedStudentId,
+    });
+
+    if (existingProfile) {
+      res.status(409).json({
+        success: false,
+        message:
+          "This student ID is already registered at this institution.",
+      });
+      return;
+    }
+
+    // ==============================
+    // RESOLVE PROGRAMME
+    // ==============================
+
+    const programmeDoc = await Programme.findOne({
+      institution: institutionDoc._id,
+      name: programme,
+      isActive: true,
+    });
+
+    if (!programmeDoc) {
+      res.status(400).json({
+        success: false,
+        message: "Selected programme could not be found for this institution.",
+      });
+      return;
+    }
+
+    // ==============================
+    // RESOLVE ACADEMIC YEAR 
+    // ==============================
+
+    const academicYearDoc = academicYear
+      ? await AcademicYear.findOne({
+          institution: institutionDoc._id,
+          name: academicYear,
+        })
+      : null;
+
+    // ==============================
+    // CREATE ACCOUNT + PROFILE (TRANSACTION)
+    // ==============================
+
+session.startTransaction();
+
+const hashedPassword = await bcrypt.hash(password, 10);
+
+const [createdUser] = await User.create(
+  [
+    {
+      firstName: firstName.trim(),
+      lastName: lastName.trim(),
+      email: normalizedEmail,
+      phone: normalizedPhone,
+      password: hashedPassword,
+      role: "student",
+    },
+  ],
+  { session }
+);
+
+if (!createdUser) {
+  throw new Error("Failed to create user inside transaction");
+}
+
+await StudentProfile.create(
+  [
+    {
+      user: createdUser._id,
+      institution: institutionDoc._id,
+      studentId: normalizedStudentId,
+      dateOfBirth: new Date(dateOfBirth),
+      faculty: programmeDoc.faculty,
+      programme: programmeDoc._id,
+      currentLevel: level,
+      academicYear: academicYearDoc?._id,
+    },
+  ],
+  { session }
+);
+
+await session.commitTransaction();
+
+const otp = generateOTP();
+const expiresAt = new Date(Date.now() + OTP_TTL_MS);
+
+
+// ... OTP generation
+await OTPModel.findOneAndUpdate(
+  { userId: createdUser._id },
+  { otp, expiresAt },
+  { upsert: true, new: true }
+);
+
+void sendEmail(
+  createdUser.email,
+  "Verify Your UniPay Ghana Account",
+  EmailOTP(`${createdUser.firstName} ${createdUser.lastName}`, otp)
+).catch((error) => {
+  console.error("Registration email error:", error);
+});
+
+void ActivityLog.create({
+  userId: createdUser._id,
+  activity: "Account registered",
+}).catch(() => {});
+
+res.status(201).json({
+  success: true,
+  message: "Account created. Please verify your email with the code we sent you.",
+  userId: createdUser._id,
+  expiresIn: OTP_TTL_MS / 1000,
+});
+
+  } catch (error) {
+    if (session.inTransaction()) {
+      await session.abortTransaction();
+    }
+
+    console.error("Registration error:", error);
+
+    res.status(500).json({
+      success: false,
+      message: "Unable to create your account. Please try again.",
+    });
+  } finally {
+    session.endSession();
+  }
+};
+
+// ==============================
+// VERIFY OTP
+// ==============================
+
+const verifyOTP = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { userId, otp } = req.body;
 
     if (!userId || !otp) {
       res.status(400).json({
         success: false,
         message: "User ID and verification code are required.",
       });
-
       return;
     }
 
-    if (!/^\d{6}$/.test(String(otp))) {
+    const otpRecord = await OTPModel.findOne({ userId });
+
+    if (!otpRecord) {
       res.status(400).json({
         success: false,
-        message: "Please enter a valid 6-digit verification code.",
+        message: "No verification code found. Please request a new one.",
       });
-
       return;
     }
 
-    // ==============================
-    // FIND USER
-    // ==============================
+    if (otpRecord.expiresAt < new Date()) {
+      await OTPModel.deleteOne({ _id: otpRecord._id });
 
-    const user = await User.findById(userId);
-=======
-const loginUser = async (req: Request, res: Response): Promise<void> => {
-  const { password, studentId , email} = req.body;
+      res.status(400).json({
+        success: false,
+        message:
+          "This verification code has expired. Please request a new one.",
+      });
+      return;
+    }
 
-  try {
-    const user = await User.findOne({ email });
-  
->>>>>>> ddae35fb587e88ff57a29a4d574dee84bccd7229
+    if (otpRecord.otp !== otp) {
+      res.status(400).json({
+        success: false,
+        message: "Incorrect verification code.",
+      });
+      return;
+    }
+
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { emailVerified: true },
+      { new: true }
+    );
 
     if (!user) {
       res.status(404).json({
         success: false,
         message: "User account not found.",
       });
-
       return;
     }
 
-    // ==============================
-    // ALREADY VERIFIED
-    // ==============================
-
-    if (user.emailVerified) {
-      res.status(400).json({
-        success: false,
-        message: "This email address has already been verified.",
-      });
-
-      return;
-    }
-
-    // ==============================
-    // FIND OTP
-    // ==============================
-
-<<<<<<< HEAD
-    const otpRecord = await OTPModel.findOne({
-      userId: user._id,
-=======
-
-    const passwordMatch = await bcrypt.compare(password, user.password);
-
-    if (!passwordMatch) {
-      res.status(401).json({
-        success: false,
-        message: "Invalid password for this account.",
-      });
-      return;
-    }
-
-    if (!user.verified) {
-      res.status(403).json({
-        success: false,
-        message: "Please verify your email to continue.",
-        redirect: "/verify-otp",
-      });
-      return;
-    }
+    await OTPModel.deleteOne({ _id: otpRecord._id });
 
     const accessToken = createAccessToken(user._id.toString(), user.role);
     const refreshToken = createRefreshToken(user._id.toString());
 
     setAppCookie(res, "usATK", accessToken, {
       path: "/",
-      maxAge: 24 * 60 * 60 * 1000,
->>>>>>> ddae35fb587e88ff57a29a4d574dee84bccd7229
+      maxAge: ACCESS_TOKEN_MAX_AGE,
     });
 
-    if (!otpRecord) {
-      res.status(400).json({
-        success: false,
-        message:
-          "No active verification code was found. Please request a new code.",
-      });
-
-      return;
-    }
-
-    // ==============================
-    // CHECK EXPIRATION
-    // ==============================
-
-    if (otpRecord.expiresAt.getTime() < Date.now()) {
-      await OTPModel.deleteOne({
-        _id: otpRecord._id,
-      });
-
-      res.status(400).json({
-        success: false,
-        message:
-          "This verification code has expired. Please request a new code.",
-      });
-
-      return;
-    }
-
-    // ==============================
-    // VERIFY OTP
-    // ==============================
-
-    if (otpRecord.otp !== String(otp)) {
-      res.status(400).json({
-        success: false,
-        message: "The verification code is incorrect.",
-      });
-
-      return;
-    }
-
-    // ==============================
-    // VERIFY USER
-    // ==============================
-
-    user.emailVerified = true;
-
-    await user.save();
-
-    // ==============================
-    // REMOVE USED OTP
-    // ==============================
-
-    await OTPModel.deleteOne({
-      _id: otpRecord._id,
+    setAppCookie(res, "usRTK", refreshToken, {
+      path: "/",
+      maxAge: REFRESH_TOKEN_MAX_AGE,
     });
 
-    // ==============================
-    // SEND CONFIRMATION EMAIL
-    // ==============================
-
-    void sendEmail(
-      user.email,
-      "Email Verified Successfully",
-      VerifiedEmail(
-        `${user.firstName} ${user.lastName}`
-      )
-    ).catch((error) => {
-      console.error(
-        "Verification confirmation email error:",
-        error
-      );
-    });
-
-    // ==============================
-    // SUCCESS RESPONSE
-    // ==============================
+    void ActivityLog.create({
+      userId: user._id,
+      activity: "Email verified",
+    }).catch(() => {});
 
     res.status(200).json({
       success: true,
-      message:
-        "Email verified successfully. You can now log in to your account.",
-
-      redirect: "/login",
-
+      message: "Your account has been verified successfully.",
       user: {
         id: user._id,
-
         firstName: user.firstName,
-
         lastName: user.lastName,
-
-        fullName:
-          `${user.firstName} ${user.lastName}`,
-
         email: user.email,
-
         role: user.role,
       },
     });
 
+    void sendEmail(
+      user.email,
+      "Welcome to UniPay Ghana",
+      EmailWelcome(`${user.firstName} ${user.lastName}`)
+    ).catch((error) => {
+      console.error("Welcome email error:", error);
+    });
   } catch (error) {
-
-    console.error(
-      "OTP verification error:",
-      error
-    );
+    console.error("OTP verification error:", error);
 
     res.status(500).json({
       success: false,
-      message:
-        "Unable to verify your email at this time. Please try again.",
+      message: "Unable to verify your account. Please try again.",
     });
   }
 };
 
-const resendOTP = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
+// ==============================
+// RESEND OTP
+// ==============================
+
+const resendOTP = async (req: Request, res: Response): Promise<void> => {
   try {
     const { userId } = req.body;
-
-    // ==============================
-    // VALIDATE REQUEST
-    // ==============================
 
     if (!userId) {
       res.status(400).json({
         success: false,
         message: "User ID is required.",
       });
-
       return;
     }
-
-    // ==============================
-    // FIND USER
-    // ==============================
 
     const user = await User.findById(userId);
 
@@ -515,122 +405,68 @@ const resendOTP = async (
         success: false,
         message: "User account not found.",
       });
-
       return;
     }
-
-    // ==============================
-    // CHECK VERIFICATION STATUS
-    // ==============================
 
     if (user.emailVerified) {
       res.status(400).json({
         success: false,
-        message:
-          "This email address has already been verified.",
+        message: "This email address has already been verified.",
       });
-
       return;
     }
 
-    // ==============================
-    // GENERATE NEW OTP
-    // ==============================
-
     const otp = generateOTP();
+    const expiresAt = new Date(Date.now() + OTP_TTL_MS);
 
-    const expiresAt = new Date(
-      Date.now() + 10 * 60 * 1000
+    await OTPModel.findOneAndUpdate(
+      { userId: user._id },
+      { otp, expiresAt },
+      { upsert: true, new: true }
     );
-
-    // ==============================
-    // REMOVE EXISTING OTP
-    // ==============================
-
-    await OTPModel.deleteMany({
-      userId: user._id,
-    });
-
-    // ==============================
-    // CREATE NEW OTP
-    // ==============================
-
-    await OTPModel.create({
-      userId: user._id,
-      otp,
-      expiresAt,
-    });
-
-    // ==============================
-    // SEND EMAIL
-    // ==============================
 
     await sendEmail(
       user.email,
       "Your New UniPay Ghana Verification Code",
-      ResendEmail(
-        `${user.firstName} ${user.lastName}`,
-        otp
-      )
+      ResendEmail(`${user.firstName} ${user.lastName}`, otp)
     );
-
-    // ==============================
-    // SUCCESS RESPONSE
-    // ==============================
 
     res.status(200).json({
       success: true,
-
-      message:
-        "A new verification code has been sent to your email.",
-
-      expiresIn: 600,
+      message: "A new verification code has been sent to your email.",
+      expiresIn: OTP_TTL_MS / 1000,
     });
-
   } catch (error) {
-
-    console.error(
-      "Resend OTP error:",
-      error
-    );
+    console.error("Resend OTP error:", error);
 
     res.status(500).json({
       success: false,
-
-      message:
-        "Unable to resend the verification code. Please try again.",
+      message: "Unable to resend the verification code. Please try again.",
     });
   }
 };
 
-const loginUser = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
-  try {
+// ==============================
+// LOGIN
+// ==============================
 
-    const {
-      identifier,
-      password,
-    } = req.body;
+const loginUser = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { identifier, password } = req.body;
 
     // ==============================
     // VALIDATION
     // ==============================
 
     if (!identifier || !password) {
-
       res.status(400).json({
         success: false,
-        message:
-          "Email or student ID and password are required.",
+        message: "Email or student ID and password are required.",
       });
-
       return;
     }
 
-    const normalizedIdentifier =
-      identifier.trim();
+    const normalizedIdentifier = identifier.trim();
 
     let user;
 
@@ -638,18 +474,10 @@ const loginUser = async (
     // EMAIL LOGIN
     // ==============================
 
-    if (
-      validator.isEmail(
-        normalizedIdentifier
-      )
-    ) {
-
-      user =
-        await User.findOne({
-          email:
-            normalizedIdentifier.toLowerCase(),
-        }).select("+password");
-
+    if (validator.isEmail(normalizedIdentifier)) {
+      user = await User.findOne({
+        email: normalizedIdentifier.toLowerCase(),
+      }).select("+password");
     }
 
     // ==============================
@@ -657,22 +485,13 @@ const loginUser = async (
     // ==============================
 
     else {
-
-      const student =
-        await StudentProfile.findOne({
-          studentId:
-            normalizedIdentifier.toUpperCase(),
-        });
+      const student = await StudentProfile.findOne({
+        studentId: normalizedIdentifier.toUpperCase(),
+      });
 
       if (student) {
-
-        user =
-          await User.findById(
-            student.user
-          ).select("+password");
-
+        user = await User.findById(student.user).select("+password");
       }
-
     }
 
     // ==============================
@@ -680,13 +499,10 @@ const loginUser = async (
     // ==============================
 
     if (!user) {
-
       res.status(401).json({
         success: false,
-        message:
-          "Invalid login credentials.",
+        message: "Invalid login credentials.",
       });
-
       return;
     }
 
@@ -695,13 +511,11 @@ const loginUser = async (
     // ==============================
 
     if (!user.isActive) {
-
       res.status(403).json({
         success: false,
         message:
           "This account has been deactivated. Please contact support.",
       });
-
       return;
     }
 
@@ -710,15 +524,12 @@ const loginUser = async (
     // ==============================
 
     if (!user.emailVerified) {
-
       res.status(403).json({
         success: false,
-        message:
-          "Please verify your email address before logging in.",
-
+        message: "Please verify your email address before logging in.",
         redirect: "/verify-otp",
+        userId: user._id,
       });
-
       return;
     }
 
@@ -727,30 +538,20 @@ const loginUser = async (
     // ==============================
 
     if (!user.password) {
-
       res.status(400).json({
         success: false,
-        message:
-          "Password login is unavailable for this account.",
+        message: "Password login is unavailable for this account.",
       });
-
       return;
     }
 
-    const passwordMatch =
-      await bcrypt.compare(
-        password,
-        user.password
-      );
+    const passwordMatch = await bcrypt.compare(password, user.password);
 
     if (!passwordMatch) {
-
       res.status(401).json({
         success: false,
-        message:
-          "Invalid login credentials.",
+        message: "Invalid login credentials.",
       });
-
       return;
     }
 
@@ -758,168 +559,95 @@ const loginUser = async (
     // GENERATE TOKENS
     // ==============================
 
-    const accessToken =
-      createAccessToken(
-        user._id.toString(),
-        user.role
-      );
-
-    const refreshToken =
-      createRefreshToken(
-        user._id.toString()
-      );
+    const accessToken = createAccessToken(user._id.toString(), user.role);
+    const refreshToken = createRefreshToken(user._id.toString());
 
     // ==============================
     // SET COOKIES
     // ==============================
 
-    setAppCookie(
-      res,
-      "usATK",
-      accessToken,
-      {
-        path: "/",
-        maxAge:
-          15 * 60 * 1000,
-      }
-    );
+    setAppCookie(res, "usATK", accessToken, {
+      path: "/",
+      maxAge: ACCESS_TOKEN_MAX_AGE,
+    });
 
-    setAppCookie(
-      res,
-      "usRTK",
-      refreshToken,
-      {
-        path: "/",
-        maxAge:
-          7 *
-          24 *
-          60 *
-          60 *
-          1000,
-      }
-    );
+    setAppCookie(res, "usRTK", refreshToken, {
+      path: "/",
+      maxAge: REFRESH_TOKEN_MAX_AGE,
+    });
 
     // ==============================
     // UPDATE LOGIN ACTIVITY
     // ==============================
 
-    user.lastLogin =
-      new Date();
-
+    user.lastLogin = new Date();
+    user.lastLoginIp = req.ip;
     await user.save();
 
+    void ActivityLog.create({
+      userId: user._id,
+      activity: "User logged in",
+    }).catch(() => {});
+
     // ==============================
-    // RESPONSE
+    // SUCCESS RESPONSE
     // ==============================
 
     res.status(200).json({
       success: true,
-
-      message:
-        "Login successful.",
-
+      message: "Login successful.",
       user: {
         id: user._id,
-
-        firstName:
-          user.firstName,
-
-        lastName:
-          user.lastName,
-
-        fullName:
-          `${user.firstName} ${user.lastName}`,
-
-        email:
-          user.email,
-
-        role:
-          user.role,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        role: user.role,
       },
     });
-
-    // ==============================
-    // BACKGROUND EMAIL
-    // ==============================
-
-    void sendEmail(
-      user.email,
-      "Welcome Back to UniPay Ghana",
-      EmailWelcome(
-        `${user.firstName} ${user.lastName}`
-      )
-    ).catch((error) => {
-      console.error(
-        "Login email error:",
-        error
-      );
-    });
-
   } catch (error) {
-
-    console.error(
-      "Login error:",
-      error
-    );
+    console.error("Login error:", error);
 
     res.status(500).json({
       success: false,
-
-      message:
-        "Something went wrong. Please try again later.",
+      message: "Something went wrong. Please try again later.",
     });
   }
 };
 
+// ==============================
+// USER PROFILE
+// ==============================
 
-
-const userProfile = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
+const userProfile = async (req: Request, res: Response): Promise<void> => {
   try {
     if (!req.user) {
       res.status(401).json({
         success: false,
         message: "Authentication required.",
       });
-
       return;
     }
 
-    const user = await User.findById(
-      req.user.id
-    ).select("-password");
+    const user = await User.findById(req.user).select("-password");
 
     if (!user) {
       res.status(404).json({
         success: false,
         message: "User not found.",
       });
-
       return;
     }
 
-    const studentProfile =
-      await StudentProfile.findOne({
-        user: user._id,
-      })
-        .populate(
-          "institution",
-          "name shortName institutionCode"
-        )
-        .populate(
-          "faculty",
-          "name code"
-        )
-        .populate(
-          "programme",
-          "name code"
-        );
+    const studentProfile = await StudentProfile.findOne({
+      user: user._id,
+    })
+      .populate("institution", "name shortName institutionCode")
+      .populate("faculty", "name code")
+      .populate("programme", "name code")
+      .populate("academicYear", "name");
 
     res.status(200).json({
       success: true,
-
       user: {
         id: user._id,
         firstName: user.firstName,
@@ -930,99 +658,86 @@ const userProfile = async (
         role: user.role,
         emailVerified: user.emailVerified,
       },
-
       studentProfile,
     });
-
   } catch (error) {
-    console.error(
-      "User profile error:",
-      error
-    );
+    console.error("User profile error:", error);
 
     res.status(500).json({
       success: false,
-      message:
-        "Unable to retrieve user profile.",
+      message: "Unable to retrieve user profile.",
     });
   }
 };
 
+// ==============================
+// UPDATE USER PROFILE
+// ==============================
 
-
-const updateUserProfile = ()=>{
-try {
-  
-} catch (error) {
-  
-}
-};
-
-
-const googleAuthCallback = async (req:Request, res:Response): Promise<void> => {
- /* try {
-    console.log("Google Profile Data:", req.user);
-
+const updateUserProfile = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
     if (!req.user) {
-      return res.status(401).json({
+      res.status(401).json({
         success: false,
-        message: "Google authentication failed",
+        message: "Authentication required.",
       });
+      return;
     }
 
-    const { id: googleId, displayName, emails, photos } = req.user;
-    const email = emails?.[0]?.value || null; 
-    const name = displayName || "Google User"; 
-    const avatar = photos?.[0]?.value || ""; 
+    const { firstName, lastName, phone } = req.body;
 
-    if (!email) {
-      return res.status(400).json({
+    const updates: Partial<{
+      firstName: string;
+      lastName: string;
+      phone: string;
+    }> = {};
+
+    if (firstName) updates.firstName = firstName.trim();
+    if (lastName) updates.lastName = lastName.trim();
+    if (phone) updates.phone = phone.trim();
+
+    if (Object.keys(updates).length === 0) {
+      res.status(400).json({
         success: false,
-        message: "Required user information (email) is missing",
+        message: "No changes were provided.",
       });
+      return;
     }
 
-    let user = await userModel.findOne({ email });
+    const user = await User.findByIdAndUpdate(req.user, updates, {
+      new: true,
+      runValidators: true,
+    }).select("-password");
 
     if (!user) {
-      user = await userModel.create({
-        name,
-        email,
-        avatar,
-        googleId,
-        verified: true, 
+      res.status(404).json({
+        success: false,
+        message: "User not found.",
       });
+      return;
     }
 
-    const token = createToken(user._id);
-    await sendEmail(email, "Welcome Back 🌷", EmailWelcome(user.name));
-
-    const frontendURL = process.env.FRONTEND_URL || "http://localhost:5173"; 
-
-    res.redirect(
-      `${frontendURL}/?token=${token}&name=${encodeURIComponent(user.name)}&email=${encodeURIComponent(user.email)}&avatar=${encodeURIComponent(avatar)}`
-    );
-  } catch (error) {
-    if (error instanceof Error) {
-      console.error("Error during Google authentication:", error.message);
-    }
-    return res.status(500).json({
-      success: false,
-      message: "Internal Server Error",
+    res.status(200).json({
+      success: true,
+      message: "Profile updated successfully.",
+      user,
     });
-  } */
+  } catch (error) {
+    console.error("Update profile error:", error);
+
+    res.status(500).json({
+      success: false,
+      message: "Unable to update your profile. Please try again.",
+    });
+  }
 };
 
-// Google login failure
-const googleAuthFailure = (req:Request, res:Response) => {
-  res.status(401).json({
-    success: false,
-    message: "Failed to authenticate with Google",
-  });
-  //console.error("Google authentication failed:", req.query.error);
-  // Redirect to login page with error message
-  res.redirect(process.env.FRONTEND_URL + "/?error=google_auth_failed");
-};
+// ==============================
+// REFRESH ACCESS TOKEN
+// ==============================
 
 const refreshAccessToken = async (
   req: Request,
@@ -1031,196 +746,136 @@ const refreshAccessToken = async (
   try {
     const refreshToken = req.cookies?.usRTK;
 
-    // ==============================
-    // CHECK REFRESH TOKEN
-    // ==============================
-
     if (!refreshToken) {
       res.status(401).json({
         success: false,
         message: "Your session has expired. Please log in again.",
       });
-
       return;
     }
-
-    // ==============================
-    // VERIFY REFRESH TOKEN
-    // ==============================
 
     let decoded: { id: string };
 
     try {
-      decoded = jwt.verify(
-        refreshToken,
-        JWT_REFRESH_SECRET
-      ) as { id: string };
+      decoded = jwt.verify(refreshToken, JWT_REFRESH_SECRET) as {
+        id: string;
+      };
     } catch (error) {
-      res.clearCookie("usATK", {
-        path: "/",
-      });
-
-      res.clearCookie("usRTK", {
-        path: "/",
-      });
+      res.clearCookie("usATK", { path: "/" });
+      res.clearCookie("usRTK", { path: "/" });
 
       res.status(401).json({
         success: false,
         message: "Your session has expired. Please log in again.",
       });
-
       return;
     }
-
-    // ==============================
-    // FIND USER
-    // ==============================
 
     const user = await User.findById(decoded.id);
 
     if (!user) {
-      res.clearCookie("usATK", {
-        path: "/",
-      });
-
-      res.clearCookie("usRTK", {
-        path: "/",
-      });
+      res.clearCookie("usATK", { path: "/" });
+      res.clearCookie("usRTK", { path: "/" });
 
       res.status(401).json({
         success: false,
         message: "User account no longer exists.",
       });
-
       return;
     }
 
-    // ==============================
-    // CHECK ACCOUNT STATUS
-    // ==============================
-
     if (!user.isActive) {
-      res.clearCookie("usATK", {
-        path: "/",
-      });
-
-      res.clearCookie("usRTK", {
-        path: "/",
-      });
+      res.clearCookie("usATK", { path: "/" });
+      res.clearCookie("usRTK", { path: "/" });
 
       res.status(403).json({
         success: false,
         message:
           "This account has been deactivated. Please contact support.",
       });
-
       return;
     }
-
-    // ==============================
-    // CREATE NEW ACCESS TOKEN
-    // ==============================
 
     const newAccessToken = createAccessToken(
       user._id.toString(),
       user.role
     );
 
-    // ==============================
-    // SET NEW ACCESS TOKEN
-    // ==============================
-
-    setAppCookie(
-      res,
-      "usATK",
-      newAccessToken,
-      {
-        path: "/",
-        maxAge: 15 * 60 * 1000,
-      }
-    );
-
-    // ==============================
-    // SUCCESS RESPONSE
-    // ==============================
+    setAppCookie(res, "usATK", newAccessToken, {
+      path: "/",
+      maxAge: ACCESS_TOKEN_MAX_AGE,
+    });
 
     res.status(200).json({
       success: true,
       message: "Session refreshed successfully.",
     });
-
   } catch (error) {
-    console.error(
-      "Refresh token error:",
-      error
-    );
+    console.error("Refresh token error:", error);
 
     res.status(500).json({
       success: false,
-      message:
-        "Unable to refresh your session. Please try again.",
+      message: "Unable to refresh your session. Please try again.",
     });
   }
 };
 
+// ==============================
+// LOGOUT
+// ==============================
 
-const logoutUser = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
+const logoutUser = async (req: Request, res: Response): Promise<void> => {
   try {
-
-    // ==============================
-    // CLEAR ACCESS TOKEN
-    // ==============================
-
-    res.clearCookie("usATK", {
-      path: "/",
-    });
-
-    // ==============================
-    // CLEAR REFRESH TOKEN
-    // ==============================
-
-    res.clearCookie("usRTK", {
-      path: "/",
-    });
-
-    // ==============================
-    // SUCCESS RESPONSE
-    // ==============================
+    res.clearCookie("usATK", { path: "/" });
+    res.clearCookie("usRTK", { path: "/" });
 
     res.status(200).json({
       success: true,
-      message:
-        "You have been logged out successfully.",
+      message: "You have been logged out successfully.",
     });
-
   } catch (error) {
-
-    console.error(
-      "Logout error:",
-      error
-    );
+    console.error("Logout error:", error);
 
     res.status(500).json({
       success: false,
-      message:
-        "Unable to log out at this time.",
+      message: "Unable to log out at this time.",
     });
   }
 };
 
-const updatePaymentStatus = () =>{
-  try {
-    
-  } catch (error) {
-    
-  }
+// ==============================
+// TODO — NOT YET IMPLEMENTED
+// ==============================
+// These depend on decisions I don't have yet:
+//   updatePaymentStatus: needs your payment gateway (Paystack / Flutterwave / etc.)
+//     and whether it's called from a webhook handler or directly.
+//   dashboardStats: needs to know exactly which numbers the dashboard should show
+//     (outstanding balance, upcoming due dates, payment history count, etc.)
+// Tell me which gateway and what the dashboard should surface, and I'll fill these in properly.
+
+const updatePaymentStatus = (_req: Request, res: Response): void => {
+  res.status(501).json({
+    success: false,
+    message: "Not implemented yet.",
+  });
 };
 
-const dashboardStats = () =>{
-  
+const dashboardStats = (_req: Request, res: Response): void => {
+  res.status(501).json({
+    success: false,
+    message: "Not implemented yet.",
+  });
 };
 
-export { registerUser, verifyOTP, resendOTP, loginUser,  userProfile, updateUserProfile, googleAuthCallback, googleAuthFailure, refreshAccessToken, logoutUser, updatePaymentStatus, dashboardStats};
+export {
+  registerUser,
+  verifyOTP,
+  resendOTP,
+  loginUser,
+  userProfile,
+  updateUserProfile,
+  refreshAccessToken,
+  logoutUser,
+  updatePaymentStatus,
+  dashboardStats,
+};

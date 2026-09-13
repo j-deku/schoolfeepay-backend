@@ -14,7 +14,7 @@ import {
   verifyOTP,
 } from "../controllers/AdminController";
 import authAdmin from "../middlewares/adminAuth";
-import authMiddleware from "../middlewares/auth";
+import { protect } from "../middlewares/auth";
 
 const AdminRouter = express.Router();
 
@@ -45,7 +45,7 @@ const validateOTP = [
 ];
 
 // Routes
-AdminRouter.get("/protect", authMiddleware, protectAdminPanel);
+AdminRouter.get("/protect", protect, protectAdminPanel);
 AdminRouter.post("/register", validateRegister, registerAdmin);
 AdminRouter.post("/login", validateLogin, loginAdmin);
 AdminRouter.post("/verify-otp", otpLimiter, validateOTP, verifyOTP);

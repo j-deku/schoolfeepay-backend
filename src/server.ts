@@ -15,10 +15,10 @@ import cookieParser from "cookie-parser";
 import "./config/passport";
 import passport from "passport";
 import path from "path";
-import apiRouter from "./apis/apiRouter";
 import courseRouter from "./routes/CourseRoute";
 import MongoStore from "connect-mongo";
 import mongoose from "mongoose";
+import apiRouter from "./apis/apiRouter";
 
 const app = express();
 const port = process.env.PORT || 5000;

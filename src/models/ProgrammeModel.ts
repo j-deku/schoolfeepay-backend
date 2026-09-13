@@ -1,4 +1,4 @@
-import mongoose, { Schema, Types } from "mongoose";
+import mongoose, { Document, Model, Schema, Types } from "mongoose";
 
 export interface IProgramme extends Document {
   institution: Types.ObjectId;
@@ -56,6 +56,7 @@ programmeSchema.index(
   { unique: true }
 );
 
-export const Programme =
-  mongoose.models.Programme ||
+
+export const Programme: Model<IProgramme> =
+  (mongoose.models.Programme as Model<IProgramme>) ||
   mongoose.model<IProgramme>("Programme", programmeSchema);

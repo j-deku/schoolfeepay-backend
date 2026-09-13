@@ -1,4 +1,4 @@
-import orderModel, { IOrderItem } from "../models/OrderModel";
+/*
 import userModel from '../models/UserModel';
 import Paystack from 'paystack';
 import {Request,Response} from 'express';
@@ -128,3 +128,4 @@ const updateStatus = async (req:Request,res:Response) =>{
 }
 
 export {placePayment,verifyPayment,studentPayment,listPayment,updateStatus}
+*/

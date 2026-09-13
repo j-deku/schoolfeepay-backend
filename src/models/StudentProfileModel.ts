@@ -1,4 +1,4 @@
-import mongoose, { Model, Schema, Types } from "mongoose";
+import mongoose, { Document, Model, Schema, Types } from "mongoose";
 
 export type StudentStatus =
   | "active"
@@ -12,7 +12,7 @@ export interface IStudentProfile extends Document {
 
   institution: Types.ObjectId;
 
-  dateOfBith: Date; 
+  dateOfBirth: Date;
 
   studentId: string;
 
@@ -20,6 +20,7 @@ export interface IStudentProfile extends Document {
   programme?: Types.ObjectId;
 
   currentLevel?: string;
+  academicYear?: Types.ObjectId;
 
   status: StudentStatus;
 
@@ -50,9 +51,9 @@ const studentProfileSchema = new Schema<IStudentProfile>(
       uppercase: true,
     },
 
-    dateOfBith: {
-        type: Date,
-        required: true,
+    dateOfBirth: {
+      type: Date,
+      required: true,
     },
 
     faculty: {
@@ -70,15 +71,14 @@ const studentProfileSchema = new Schema<IStudentProfile>(
       trim: true,
     },
 
+    academicYear: {
+      type: Schema.Types.ObjectId,
+      ref: "AcademicYear",
+    },
+
     status: {
       type: String,
-      enum: [
-        "active",
-        "graduated",
-        "deferred",
-        "suspended",
-        "withdrawn",
-      ],
+      enum: ["active", "graduated", "deferred", "suspended", "withdrawn"],
       default: "active",
     },
   },
@@ -88,11 +88,8 @@ const studentProfileSchema = new Schema<IStudentProfile>(
   }
 );
 
-studentProfileSchema.index(
-  { institution: 1, studentId: 1 },
-  { unique: true }
-);
-
+studentProfileSchema.index({ institution: 1, studentId: 1 }, { unique: true });
 
 export const StudentProfile: Model<IStudentProfile> =
-  mongoose.models.User || mongoose.model<IStudentProfile>("StudentProfile", studentProfileSchema);
+  mongoose.models.StudentProfile ||
+  mongoose.model<IStudentProfile>("StudentProfile", studentProfileSchema);

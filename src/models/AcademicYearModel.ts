@@ -1,4 +1,4 @@
-import mongoose, { Schema, Types } from "mongoose";
+import mongoose, { Document, Model, Schema, Types } from "mongoose";
 
 export interface IAcademicYear extends Document {
   institution: Types.ObjectId;
@@ -56,6 +56,6 @@ academicYearSchema.index(
   { unique: true }
 );
 
-export const AcademicYear = 
-  mongoose.models.AcademicYear ||
+export const AcademicYear: Model<IAcademicYear> =
+  (mongoose.models.AcademicYear as Model<IAcademicYear>) ||
   mongoose.model<IAcademicYear>("AcademicYear", academicYearSchema);
