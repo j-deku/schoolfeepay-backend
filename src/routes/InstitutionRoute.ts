@@ -1,8 +1,11 @@
 import { Router } from "express";
-import { getInstitutions } from "../controllers/InstitutionController";
+import { getInstitutions, listInstitutions, listProgrammes } from "../controllers/InstitutionController";
 
-const router = Router();
+const institutionRouter = Router();
 
-router.get("/", getInstitutions);
+institutionRouter.get("/", getInstitutions);
+//institutionRouter.get("/", listInstitutions);
+institutionRouter.get("/:institutionCode/programmes", listProgrammes);
 
-export default router;
+
+export default institutionRouter;

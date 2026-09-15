@@ -53,3 +53,49 @@ export const getInstitutions = async (
     });
   }
 };
+
+
+
+export const listInstitutions = async (
+  _req: Request,
+  res: Response
+): Promise<void> => {
+  const institutions = await Institution.find({ isActive: true })
+    .select("name shortName institutionCode")
+    .lean();
+
+  res.status(200).json({ success: true, institutions });
+};
+
+interface ListProgrammesParams {
+  institutionCode: string;
+}
+
+export const listProgrammes = async (
+  req: Request<ListProgrammesParams>,
+  res: Response
+): Promise<void> => {
+  const { institutionCode } = req.params;
+
+  const institution = await Institution.findOne({
+    institutionCode: institutionCode.toUpperCase(),
+    isActive: true,
+  });
+
+  if (!institution) {
+    res.status(404).json({
+      success: false,
+      message: "Institution not found.",
+    });
+    return;
+  }
+
+  const programmes = await Programme.find({
+    institution: institution._id,
+    isActive: true,
+  })
+    .select("name code")
+    .lean();
+
+  res.status(200).json({ success: true, programmes });
+};
